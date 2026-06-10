@@ -3,29 +3,19 @@ from app import mail
 import random
 
 def generate_otp():
-    """Generate a random 6-digit OTP code"""
     return str(random.randint(100000, 999999))
 
 def send_otp_email(email, otp_code):
-    """Send OTP verification email to user"""
     try:
         msg = Message(
             subject="Verify your ErrandGo account",
             recipients=[email],
-            body=f"""
-Hi there,
-
-Welcome to ErrandGo!
-
-Your verification code is:
-
+            body=f""" Hi there, Welcome to ErrandGo!
+                Your verification code is:
         {otp_code}
-
-This code expires in 15 minutes.
-
-If you did not create an ErrandGo account, please ignore this email.
-
-The ErrandGo Team
+                This code expires in 15 minutes
+                If you did not create an ErrandGo account, please ignore this email.
+                The ErrandGo Team
             """
         )
         mail.send(msg)

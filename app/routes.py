@@ -9,26 +9,20 @@ import re
 
 auth = Blueprint("auth", __name__)
 
-
-# ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
-
+# HELPER FUNCTIONS
 def is_valid_email(email):
-    """Check if email format is valid"""
     pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     return re.match(pattern, email)
 
 def is_valid_password(password):
-    """Password must be at least 8 characters"""
     return len(password) >= 8
 
-
-# ─── REGISTER ────────────────────────────────────────────────────────────────
-
+# REGISTER 
 @auth.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
 
-    # --- Validate input ---
+    # Validate input
     email = data.get("email", "").strip().lower()
     password = data.get("password", "").strip()
     location = data.get("location", "").strip()
@@ -48,22 +42,22 @@ def register():
     if not location:
         return jsonify({"error": "Please select or enter your location"}), 400
 
-    # --- Check if email already exists ---
+    # Check if email already exists
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         return jsonify({"error": "An account with this email already exists"}), 409
 
-    # --- Hash password ---
+    # Hash password
     hashed_password = bcrypt.hashpw(
         password.encode("utf-8"),
         bcrypt.gensalt()
     ).decode("utf-8")
 
-    # --- Generate OTP ---
+    # Generate OTP
     otp = generate_otp()
     otp_expiry = datetime.utcnow() + timedelta(minutes=15)
 
-    # --- Save user to database ---
+    # Save user to database
     new_user = User(
         email=email,
         password=hashed_password,
@@ -76,7 +70,7 @@ def register():
     db.session.add(new_user)
     db.session.commit()
 
-    # --- Send OTP email ---
+    # Send OTP email
     email_sent = send_otp_email(email, otp)
     if not email_sent:
         return jsonify({
@@ -88,9 +82,7 @@ def register():
         "email": email
     }), 201
 
-
-# ─── VERIFY EMAIL ─────────────────────────────────────────────────────────────
-
+# VERIFY EMAIL
 @auth.route("/verify-email", methods=["POST"])
 def verify_email():
     data = request.get_json()
@@ -101,30 +93,30 @@ def verify_email():
     if not email or not otp_code:
         return jsonify({"error": "Email and OTP code are required"}), 400
 
-    # --- Find user ---
+    # Find user
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"error": "Account not found"}), 404
 
-    # --- Already verified? ---
+    # Already verified? 
     if user.is_verified:
         return jsonify({"message": "Account is already verified. Please log in."}), 200
 
-    # --- Check OTP match ---
+    # Check OTP match
     if user.otp_code != otp_code:
         return jsonify({"error": "Invalid verification code"}), 400
 
-    # --- Check OTP expiry ---
+    # Check OTP expiry 
     if datetime.utcnow() > user.otp_expires_at:
         return jsonify({"error": "Verification code has expired. Please request a new one."}), 400
 
-    # --- Verify the account ---
+    # Verify the account
     user.is_verified = True
     user.otp_code = None
     user.otp_expires_at = None
     db.session.commit()
 
-    # --- Generate JWT ---
+    # Generate JWT
     token = create_access_token(identity=str(user.id))
 
     return jsonify({
@@ -133,8 +125,7 @@ def verify_email():
     }), 200
 
 
-# ─── RESEND OTP ───────────────────────────────────────────────────────────────
-
+# RESEND OTP
 @auth.route("/resend-otp", methods=["POST"])
 def resend_otp():
     data = request.get_json()
@@ -150,7 +141,7 @@ def resend_otp():
     if user.is_verified:
         return jsonify({"message": "Account is already verified. Please log in."}), 200
 
-    # --- Generate new OTP ---
+    # Generate new OTP
     otp = generate_otp()
     otp_expiry = datetime.utcnow() + timedelta(minutes=15)
 
@@ -167,8 +158,7 @@ def resend_otp():
     }), 200
 
 
-# ─── LOGIN ────────────────────────────────────────────────────────────────────
-
+# LOGIN 
 @auth.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -179,20 +169,20 @@ def login():
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
-    # --- Find user ---
+    # Find user
     user = User.query.filter_by(email=email).first()
 
-    # --- Generic error for security ---
+    # Generic error for security
     if not user or user.auth_method != "email":
         return jsonify({"error": "Invalid email or password"}), 401
 
-    # --- Check if verified ---
+    # Check if verified 
     if not user.is_verified:
         return jsonify({
             "error": "Please verify your email before logging in."
         }), 403
 
-    # --- Check password ---
+    # Check password
     password_matches = bcrypt.checkpw(
         password.encode("utf-8"),
         user.password.encode("utf-8")
@@ -200,7 +190,7 @@ def login():
     if not password_matches:
         return jsonify({"error": "Invalid email or password"}), 401
 
-    # --- Generate JWT ---
+    # Generate JWT
     token = create_access_token(identity=str(user.id))
 
     return jsonify({
