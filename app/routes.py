@@ -120,7 +120,7 @@ def verify_email():
     token = create_access_token(identity=str(user.id))
 
     return jsonify({
-        "message": "Email verified successfully. Welcome to ErrandGo!",
+        "message": "Account Verified! Welcome to ErrandGo. Let’s get things done for you.",
         "token": token
     }), 200
 
