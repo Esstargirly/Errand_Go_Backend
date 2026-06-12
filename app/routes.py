@@ -17,7 +17,9 @@ def is_valid_email(email):
 def is_valid_password(password):
     return len(password) >= 8
 
-# REGISTER 
+
+# REGISTER
+
 @auth.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -25,7 +27,10 @@ def register():
     # Validate input
     email = data.get("email", "").strip().lower()
     password = data.get("password", "").strip()
-    location = data.get("location", "").strip()
+    mobile_number = data.get("mobile_number", "").strip()
+    country = data.get("country", "").strip()
+    city_community = data.get("city_community", "").strip()
+    gender = data.get("gender", "").strip().lower()
 
     if not email:
         return jsonify({"error": "Email is required"}), 400
@@ -39,13 +44,33 @@ def register():
     if not is_valid_password(password):
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    if not location:
-        return jsonify({"error": "Please select or enter your location"}), 400
+    if not mobile_number:
+        return jsonify({"error": "Mobile number is required"}), 400
+
+    if not is_valid_mobile(mobile_number):
+        return jsonify({"error": "Please enter a valid mobile number"}), 400
+
+    if not country:
+        return jsonify({"error": "Country is required"}), 400
+
+    if not city_community:
+        return jsonify({"error": "City/Community is required"}), 400
+
+    if not gender:
+        return jsonify({"error": "Gender is required"}), 400
+
+    if gender not in ["male", "female", "other"]:
+        return jsonify({"error": "Gender must be male, female, or other"}), 400
 
     # Check if email already exists
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         return jsonify({"error": "An account with this email already exists"}), 409
+
+    # Check if mobile number already exists
+    existing_mobile = User.query.filter_by(mobile_number=mobile_number).first()
+    if existing_mobile:
+        return jsonify({"error": "An account with this mobile number already exists"}), 409
 
     # Hash password
     hashed_password = bcrypt.hashpw(
@@ -62,7 +87,10 @@ def register():
         email=email,
         password=hashed_password,
         auth_method="email",
-        location=location,
+        mobile_number=mobile_number,
+        country=country,
+        city_community=city_community,
+        gender=gender,
         is_verified=False,
         otp_code=otp,
         otp_expires_at=otp_expiry
