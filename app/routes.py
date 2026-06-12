@@ -315,6 +315,6 @@ def google_auth():
     token = create_access_token(identity=str(new_user.id))
 
     return jsonify({
-        "message": "Account created successfully. Welcome to ErrandGo!",
+        "message": "Account Verified! Welcome to ErrandGo. Let's get things done for you.",
         "token": token
     }), 201
