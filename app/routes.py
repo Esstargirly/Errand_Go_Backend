@@ -6,6 +6,9 @@ from flask_jwt_extended import create_access_token
 from datetime import datetime, timedelta
 import bcrypt
 import re
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import os
 
 auth = Blueprint("auth", __name__)
 
@@ -16,6 +19,10 @@ def is_valid_email(email):
 
 def is_valid_password(password):
     return len(password) >= 8
+def is_valid_mobile(mobile_number):
+    """Mobile number must be 10-15 digits, optional + at start"""
+    pattern = r'^\+?\d{10,15}$'
+    return re.match(pattern, mobile_number)
 
 
 # REGISTER
@@ -225,3 +232,89 @@ def login():
         "message": "Login successful. Welcome back!",
         "token": token
     }), 200
+
+# GOOGLE AUTH 
+@auth.route("/google-auth", methods=["POST"])
+def google_auth():
+    data = request.get_json()
+
+    google_token = data.get("google_token", "").strip()
+    mobile_number = data.get("mobile_number", "").strip()
+    country = data.get("country", "").strip()
+    city_community = data.get("city_community", "").strip()
+    gender = data.get("gender", "").strip().lower()
+
+    if not google_token:
+        return jsonify({"error": "Google token is required"}), 400
+
+    if not mobile_number:
+        return jsonify({"error": "Mobile number is required"}), 400
+
+    if not is_valid_mobile(mobile_number):
+        return jsonify({"error": "Please enter a valid mobile number"}), 400
+
+    if not country:
+        return jsonify({"error": "Country is required"}), 400
+
+    if not city_community:
+        return jsonify({"error": "City/Community is required"}), 400
+
+    if not gender:
+        return jsonify({"error": "Gender is required"}), 400
+
+    if gender not in ["male", "female", "other"]:
+        return jsonify({"error": "Gender must be male, female, or other"}), 400
+
+    # Verify token with Google
+    try:
+        google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        id_info = id_token.verify_oauth2_token(
+            google_token,
+            google_requests.Request(),
+            google_client_id
+        )
+    except ValueError:
+        return jsonify({"error": "Invalid Google token"}), 401
+
+    google_id = id_info.get("sub")
+    email = id_info.get("email")
+    is_email_verified = id_info.get("email_verified", False)
+
+    if not is_email_verified:
+        return jsonify({"error": "Google account email is not verified"}), 401
+
+    # Existing user → log in
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        token = create_access_token(identity=str(existing_user.id))
+        return jsonify({
+            "message": "Login successful. Welcome back!",
+            "token": token
+        }), 200
+
+    # Check mobile number uniqueness for new user
+    existing_mobile = User.query.filter_by(mobile_number=mobile_number).first()
+    if existing_mobile:
+        return jsonify({"error": "An account with this mobile number already exists"}), 409
+
+    # New user → save
+    new_user = User(
+        email=email,
+        password=None,
+        google_id=google_id,
+        auth_method="google",
+        mobile_number=mobile_number,
+        country=country,
+        city_community=city_community,
+        gender=gender,
+        is_verified=True,
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    token = create_access_token(identity=str(new_user.id))
+
+    return jsonify({
+        "message": "Account created successfully. Welcome to ErrandGo!",
+        "token": token
+    }), 201
