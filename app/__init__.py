@@ -28,7 +28,11 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
-    CORS(app)
+    CORS(app, 
+     resources={r"/api/*": {"origins": "*"}},
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
     # Register routes
     from app.routes import auth
