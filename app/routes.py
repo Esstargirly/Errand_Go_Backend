@@ -1,3 +1,4 @@
+from app import db, limiter
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models import User
@@ -28,6 +29,7 @@ def is_valid_mobile(mobile_number):
 # REGISTER
 
 @auth.route("/register", methods=["POST"])
+@limiter.limit("5 per minute")
 def register():
     data = request.get_json()
 
@@ -119,6 +121,7 @@ def register():
 
 # VERIFY EMAIL
 @auth.route("/verify-email", methods=["POST"])
+@limiter.limit("5 per minute")
 def verify_email():
     data = request.get_json()
 
@@ -162,6 +165,7 @@ def verify_email():
 
 # RESEND OTP
 @auth.route("/resend-otp", methods=["POST"])
+@limiter.limit("5 per minute")
 def resend_otp():
     data = request.get_json()
     email = data.get("email", "").strip().lower()
@@ -195,6 +199,7 @@ def resend_otp():
 
 # LOGIN 
 @auth.route("/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json()
 
@@ -235,6 +240,7 @@ def login():
 
 # GOOGLE AUTH 
 @auth.route("/google-auth", methods=["POST"])
+@limiter.limit("5 per minute")
 def google_auth():
     data = request.get_json()
 
