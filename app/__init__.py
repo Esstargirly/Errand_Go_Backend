@@ -14,6 +14,7 @@ jwt = JWTManager()
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=os.getenv("REDIS_URL"),
+    storage_options={"ssl_cert_reqs": None},
     default_limits=[]
 )
 
